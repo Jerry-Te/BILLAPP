@@ -463,35 +463,81 @@ async function resetAllData() {
 }
 
 async function registerSW() {
-  if ('serviceWorker' in navigator) {
-    try {
-      var reg = await navigator.serviceWorker.register('/sw.js');
-      console.log('SW registered');
-      navigator.serviceWorker.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'ONLINE_STATUS') {
+  if (!('serviceWorker' in navigator)) {
+    console.warn('[App] Service Worker NOT supported');
+    return;
+  }
+  try {
+    var reg = await navigator.serviceWorker.register('/sw.js');
+    console.log('[App] SW registered, scope: ' + reg.scope);
+
+    // Wait for the SW to be ready (active + controlling)
+    var readyReg = await navigator.serviceWorker.ready;
+    console.log('[App] SW ready, state: ' + (readyReg.active ? readyReg.active.state : 'none'));
+
+    // Check if SW is controlling this page
+    if (navigator.serviceWorker.controller) {
+      console.log('[App] SW controller:', navigator.serviceWorker.controller.state);
+      // Query cache info
+      navigator.serviceWorker.controller.postMessage({ type: 'GET_CACHE_INFO' });
+    } else {
+      console.warn('[App] No SW controller yet - first install, reloading...');
+      // navigator.serviceWorker.ready resolved, but on first install
+      // the page was loaded without SW. Reload once to get control.
+      if (!sessionStorage.getItem('swReloaded')) {
+        sessionStorage.setItem('swReloaded', '1');
+        window.location.reload();
+      } else {
+        console.warn('[App] Reload already attempted, continuing without controller');
+      }
+    }
+
+    // Listen for messages from SW
+    navigator.serviceWorker.addEventListener('message', function(event) {
+      if (!event.data) return;
+      switch (event.data.type) {
+        case 'ONLINE_STATUS':
           appState.online = event.data.online;
           updateOnlineStatus();
-        }
-      });
-      if (reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          break;
+        case 'CACHE_INFO':
+          console.log('[App] Cache:', event.data.cacheName, '(' + event.data.itemCount + ' items)');
+          event.data.items.forEach(function(url) { console.log('[App]   cached:', url); });
+          break;
       }
-      reg.addEventListener('updatefound', function() {
-        var newWorker = reg.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', function() {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              showToast('新版本已就绪');
+    });
+
+    // Detect when SW takes control (e.g., after update)
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      console.log('[App] SW controller changed');
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'GET_CACHE_INFO' });
+      }
+    });
+
+    // Handle SW updates
+    reg.addEventListener('updatefound', function() {
+      var newWorker = reg.installing;
+      if (!newWorker) return;
+      console.log('[App] New SW version found');
+      newWorker.addEventListener('statechange', function() {
+        switch (newWorker.state) {
+          case 'installed':
+            if (navigator.serviceWorker.controller) {
+              console.log('[App] New SW installed - ready for update');
+              showToast('New version ready, refresh to apply');
             }
-          });
+            break;
+          case 'activated':
+            console.log('[App] New SW activated');
+            break;
         }
       });
-    } catch (error) {
-      console.warn('SW registration failed:', error);
-    }
+    });
+  } catch (error) {
+    console.error('[App] SW registration failed:', error);
   }
 }
-
 function updateOnlineStatus() {
   var root = document.documentElement;
   var ind = document.querySelector('.online-indicator');
@@ -509,22 +555,25 @@ function updateOnlineStatus() {
 
 document.addEventListener('DOMContentLoaded', async function() {
   await registerSW();
+
+  // ==================== Diagnostics ====================
+  console.log('[App] ===== Bear Accounting Startup Diagnostics =====');
   var isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-  if (isStandalone) document.documentElement.classList.add('pwa-mode');
-  // 添加在线状态指示器
-  var indicator = document.createElement('span');
-  indicator.className = 'online-indicator online';
-  indicator.title = '在线';
-  var btnExport = document.getElementById('btn-export');
-  if (btnExport && btnExport.parentNode) {
-    btnExport.parentNode.insertBefore(indicator, btnExport);
+  appState.isStandalone = isStandalone;
+  console.log('[App] Standalone:', isStandalone);
+  console.log('[App] Online:', navigator.onLine);
+  console.log('[App] SW supported:', 'serviceWorker' in navigator);
+  if ('serviceWorker' in navigator) {
+    console.log('[App] SW controller:', navigator.serviceWorker.controller ? 'YES' : 'NO (page not controlled)');
   }
-  if (typeof navigator.onLine !== 'undefined') {
-    appState.online = navigator.onLine;
-    updateOnlineStatus();
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
+  console.log('[App] Platform:', navigator.platform);
+  console.log('[App] UserAgent:', navigator.userAgent);
+  console.log('[App] ============================================');
+
+  if (isStandalone) {
+    document.documentElement.classList.add('pwa-mode');
   }
+  
   var cats = await getCategories();
   appState.categories.income = cats.filter(function(c) { return c.type === 'income'; });
   appState.categories.expense = cats.filter(function(c) { return c.type === 'expense'; });
