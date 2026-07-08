@@ -465,11 +465,45 @@ async function resetAllData() {
 async function registerSW() {
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('/sw.js');
-      console.log('\u2705 Service Worker \u5df2\u6ce8\u518c');
+      var reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('SW registered');
+      navigator.serviceWorker.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'ONLINE_STATUS') {
+          appState.online = event.data.online;
+          updateOnlineStatus();
+        }
+      });
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('新版本已就绪');
+            }
+          });
+        }
+      });
     } catch (error) {
-      console.warn('\u26a0\ufe0f Service Worker \u6ce8\u518c\u5931\u8d25:', error);
+      console.warn('SW registration failed:', error);
     }
+  }
+}
+
+function updateOnlineStatus() {
+  var root = document.documentElement;
+  var ind = document.querySelector('.online-indicator');
+  var wasOffline = root.classList.contains('offline');
+  if (!navigator.onLine) {
+    root.classList.add('offline');
+    if (ind) { ind.className = 'online-indicator offline'; ind.title = '离线'; }
+    if (!wasOffline) showToast('已断开网络，离线模式运行');
+  } else {
+    root.classList.remove('offline');
+    if (ind) { ind.className = 'online-indicator online'; ind.title = '在线'; }
+    if (wasOffline) showToast('网络已恢复');
   }
 }
 
@@ -477,6 +511,20 @@ document.addEventListener('DOMContentLoaded', async function() {
   await registerSW();
   var isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   if (isStandalone) document.documentElement.classList.add('pwa-mode');
+  // 添加在线状态指示器
+  var indicator = document.createElement('span');
+  indicator.className = 'online-indicator online';
+  indicator.title = '在线';
+  var btnExport = document.getElementById('btn-export');
+  if (btnExport && btnExport.parentNode) {
+    btnExport.parentNode.insertBefore(indicator, btnExport);
+  }
+  if (typeof navigator.onLine !== 'undefined') {
+    appState.online = navigator.onLine;
+    updateOnlineStatus();
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+  }
   var cats = await getCategories();
   appState.categories.income = cats.filter(function(c) { return c.type === 'income'; });
   appState.categories.expense = cats.filter(function(c) { return c.type === 'expense'; });

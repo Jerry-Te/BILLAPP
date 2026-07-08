@@ -995,3 +995,35 @@ input, textarea {
     display: block !important;
   }
 }
+
+
+/* ==================== 离线状态指示器 ==================== */
+
+.online-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.online-indicator.online {
+  background: #27ae60;
+  box-shadow: 0 0 4px rgba(39, 174, 96, 0.4);
+}
+
+.online-indicator.offline {
+  background: #e74c3c;
+  box-shadow: 0 0 4px rgba(231, 76, 60, 0.4);
+}
+
+/* 离线时给标题栏加条红色顶边 */
+html.offline .app-header {
+  border-top: 2px solid #e74c3c;
+}
+
+/* 离线时给所有数据操作按钮一个提示 */
+html.offline .fab:active {
+  background: #e74c3c;
+}
