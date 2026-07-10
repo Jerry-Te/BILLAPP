@@ -1,15 +1,15 @@
-const APP_VERSION = 'v1.2.2';
+const APP_VERSION = 'v1.2.3';
 const CACHE_NAME = 'billapp-' + APP_VERSION;
 const STATIC_ASSETS = [
   './',
-  './index.html?v=1.2.2',
-  './manifest.json?v=1.2.2',
-  './css/app.css?v=1.2.2',
-  './js/db.js?v=1.2.2',
-  './js/app.js?v=1.2.2',
-  './icons/icon-192.png?v=1.2.2',
-  './icons/icon-512.png?v=1.2.2',
-  './icons/icon-1024.png?v=1.2.2'
+  './index.html?v=1.2.3',
+  './manifest.json?v=1.2.3',
+  './css/app.css?v=1.2.3',
+  './js/db.js?v=1.2.3',
+  './js/app.js?v=1.2.3',
+  './icons/icon-192.png?v=1.2.3',
+  './icons/icon-512.png?v=1.2.3',
+  './icons/icon-1024.png?v=1.2.3'
 ];
 
 self.addEventListener('install', event => {
