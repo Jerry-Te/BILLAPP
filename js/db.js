@@ -310,6 +310,39 @@ export async function exportAllData() {
   return allData;
 }
 
+export async function importAllData(data) {
+  const db = await openDB();
+  const storeNames = Object.keys(STORES);
+
+  for (const storeName of storeNames) {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    await new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  for (const storeName of storeNames) {
+    const records = Array.isArray(data?.[storeName]) ? data[storeName] : [];
+    if (records.length === 0) continue;
+
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+
+    for (const record of records) {
+      await new Promise((resolve, reject) => {
+        const request = store.put(record);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+  }
+
+  return true;
+}
+
 export async function clearAllData() {
   const db = await openDB();
   for (const storeName of Object.keys(STORES)) {
