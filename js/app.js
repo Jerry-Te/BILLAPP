@@ -6,7 +6,7 @@
 import { addTransaction, updateTransaction, deleteTransaction, getAllTransactions, getTransactionsByMonth, getRecentTransactions, getCategories, addCategory, deleteCategory, getBalance, getMonthlySummary, getAllSettings, getSetting, setSetting, getAllBudgets, setBudget, getBudgetForMonth, exportAllData, importAllData, clearAllData } from './db.js';
 
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
-const $ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 const APP_VERSION = 'v1.2.3';
 const APP_VERSION_KEY = 'billapp-version';
 const FALLBACK_RENDER_TIMEOUT = 5000;
