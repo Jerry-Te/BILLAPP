@@ -40,7 +40,7 @@ function withVersion(request) {
   if (url.origin !== self.location.origin) return request;
   if (url.searchParams.get('v') === APP_VERSION) return request;
   url.searchParams.set('v', APP_VERSION);
-  return new Request(url, request);
+  return new Request(url);
 }
 
 self.addEventListener('fetch', event => {
